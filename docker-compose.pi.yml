@@ -1,0 +1,46 @@
+services:
+  spectrum:
+    build:
+      context: /home/azyle/Work/spectrum
+    container_name: spectrum
+    restart: unless-stopped
+    # Host networking instead of published ports: the host firewall blocks
+    # the bridge subnet from reaching other host-bound services (pihole on
+    # :80, this is why the pihole panel couldn't connect), and pihole/unbound
+    # already use host mode for the same reason. The app binds 0.0.0.0
+    # inside the container either way, so this changes nothing about what's
+    # reachable from the LAN/Tailscale on :8000/:9999.
+    network_mode: host
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      # Read-only host visibility for the system-monitor panel (server/system_stats.py).
+      # No psutil: it reads these directly, see that file's docstring for why.
+      - /proc:/host/proc:ro
+      - /:/hostfs:ro
+      # For the Tailscale panel: the CLI talks to tailscaled over this
+      # socket. The binary is a static Go build (no shared libs to also
+      # bind-mount) and matches this Pi's arch since everything's built
+      # on-device.
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock
+      - /usr/bin/tailscale:/usr/bin/tailscale:ro
+      # For the Docker panel: talks to dockerd's own local API over this
+      # socket (see server/docker_stats.py) -- no docker CLI/SDK needed.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # SPECTRUM_PIHOLE_PASSWORD lives in .env, next to this file, NOT here --
+    # keep it out of anything that gets rsynced from the dev machine.
+    env_file:
+      - .env
+    environment:
+      TZ: 'Europe/Paris'
+      # Signal-processing window sizes (global, not per-node -- see state.py
+      # for why). Per-node motion/presence thresholds (empty_max, moving_min,
+      # motion_scale, motion_gamma, led_min) live in server/node_thresholds.json
+      # instead: edit that file and rebuild (docker compose up -d --build) to
+      # apply, no code change needed.
+      SPECTRUM_CSI_WINDOW_SIZE: '50'
+      SPECTRUM_STD_WINDOW_SIZE: '100'
+      # pihole and meshtastic-bridge are sibling containers on the same Pi,
+      # both reachable via the host's LAN IP (pihole runs with
+      # network_mode: host; meshtastic-bridge publishes its port to it).
+      SPECTRUM_PIHOLE_HOST: '192.168.1.78'
+      SPECTRUM_MESHTASTIC_HOST: '192.168.1.78'

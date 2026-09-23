@@ -1,0 +1,23 @@
+menu "Spectrum node config"
+
+    config SPECTRUM_WIFI_SSID
+        string "WiFi SSID to auto-connect to at boot"
+        default ""
+
+    config SPECTRUM_WIFI_PASSWORD
+        string "WiFi password"
+        default ""
+
+    config SPECTRUM_SERVER_HOST
+        string "Spectrum server (Pi) IP address"
+        default "192.168.1.78"
+
+    config SPECTRUM_SERVER_PORT
+        int "Spectrum server UDP port"
+        default 9999
+
+    config SPECTRUM_NODE_ID
+        int "This node's id"
+        default 1
+
+endmenu

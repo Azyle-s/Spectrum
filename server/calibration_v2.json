@@ -1,0 +1,104 @@
+{
+  "_notes": [
+    "Session 2026-09-22, node 1 only, single position. window_std/activity",
+    "definitions and the frame_diff/drift dead ends are documented in",
+    "server/state.py. The three passes below used std(window_std) computed",
+    "over the FULL 45s capture (one number per pass) -- that is NOT the same",
+    "quantity as the live `activity` metric, which is std(window_std) over a",
+    "rolling ~1s window recomputed every frame. The live metric runs at a",
+    "smaller scale for the same reason a short clip has less variance than a",
+    "long one. EMPTY_MAX/MOVING_MIN were first set from these 45s numbers,",
+    "then MOVING_MIN was corrected (1.0 -> 0.5) after a live test showed the",
+    "original value never triggered presence during real movement.",
+    "Live-validated 2026-09-22 with MOVING_MIN=0.5: presence correctly",
+    "flipped true within ~0.8s of movement onset, dropped back within ~1.2s",
+    "of stopping, and stayed pinned at motion=1.0 (comfortable margin above",
+    "threshold) throughout sustained movement. See conversation for the",
+    "raw timestamped log.",
+    "TODO next calibration: capture `activity` (not window_std) stats",
+    "directly, at the same ~1s rolling scale the live scorer uses, so the",
+    "calibration numbers and the live numbers are directly comparable.",
+    "",
+    "Follow-up same day: STD_WINDOW_SIZE was dropped 100->50 (~0.5s) to cut",
+    "perceived UI latency. That broke presence reliability -- live `activity`",
+    "during real strong movement measured mean=0.32 (below MOVING_MIN=0.5),",
+    "vs mean=0.51 back at STD_WINDOW_SIZE=100. Likely cause: a 0.5s window is",
+    "shorter than a walking gait cycle (~1s), so it misses the natural",
+    "rhythmic variation in window_std that produces the `activity` signal --",
+    "not just noisier, systematically lower. Reverted to 100. If UI latency",
+    "needs cutting again, shrink CSI_WINDOW_SIZE (the *first* window,",
+    "currently 50/~0.5s) instead of STD_WINDOW_SIZE, or accept the ~1.5s.",
+    "",
+    "Also added MOTION_SCALE (display ceiling, separate from MOVING_MIN the",
+    "presence threshold) and MOTION_GAMMA (power-curve applied to the",
+    "ratio) purely to shape the UI amplitude -- neither affects detection.",
+    "Measured at STD_WINDOW_SIZE=100 during real strong movement: activity",
+    "mean=0.51, std=0.38, max=1.92. Set MOTION_SCALE=1.0 (roughly mean +",
+    "1.3*std) and MOTION_GAMMA=2.0 from that reading; user confirmed the",
+    "result looked right live. If tuning again, remember MOTION_SCALE only",
+    "makes sense measured at whatever STD_WINDOW_SIZE is currently set --",
+    "changing the window changes activity's scale, which was the whole",
+    "source of the confusion above.",
+    "",
+    "IMPORTANT, same evening ~17:00-20:00: node 1's empty-room baseline drifted",
+    "from window_std~8.9/activity~0.1 (afternoon) to window_std~38-39/",
+    "activity mean=0.42 max=1.65 (evening), completely unprompted -- no code",
+    "change, no furniture, node 2 unplugged and ruled out as a cause (baseline",
+    "identical with/without it running), LED sending ruled out too (identical",
+    "with LED_NODE_IDS emptied). Best working theory: ambient WiFi congestion",
+    "varies by time of day (neighbors' networks, more household devices active",
+    "in the evening) and the channel simply got noisier -- not a bug, not",
+    "movement, not anything in this repo. The empty vs moving CONTRAST held up",
+    "(~5.6x both before and after: moving mean=2.35 max=10.27 that evening),",
+    "so the metric itself is still sound -- only the absolute scale shifts.",
+    "This means static per-node thresholds are NOT robust across a full day/",
+    "night cycle at this location. A real fix needs an adaptive baseline",
+    "(e.g. a slow-moving EMA of `activity` itself, comparing recent readings",
+    "against it rather than a fixed constant) -- not implemented yet. Until",
+    "then, expect to re-tune SPECTRUM_MOVING_MIN/LED_MIN/MOTION_SCALE by",
+    "time of day, the same way this file now has two very different sets of",
+    "'right' numbers for the same node less than a day apart."
+  ],
+  "1": {
+    "empty": {
+      "window_std": {"count": 4621, "duration_s": 45.0, "mean": 8.8583, "std": 0.13262, "min": 7.9389, "max": 9.20825},
+      "captured_at": "2026-09-22T13:05:00+00:00"
+    },
+    "active_on_spot": {
+      "window_std": {"count": 4617, "duration_s": 45.0, "mean": 6.62669, "std": 0.54817, "min": 5.88297, "max": 9.22787},
+      "captured_at": "2026-09-22T13:20:00+00:00"
+    },
+    "moving": {
+      "window_std": {"count": 4626, "duration_s": 45.0, "mean": 8.63119, "std": 1.62284, "min": 4.41989, "max": 12.06962},
+      "captured_at": "2026-09-22T13:35:00+00:00"
+    },
+    "empty_evening": {
+      "activity": {"count": 4633, "duration_s": 45.0, "mean": 0.42217, "std": 0.26048, "min": 0.12237, "max": 1.64607},
+      "captured_at": "2026-09-22T17:55:00+00:00"
+    },
+    "moving_evening": {
+      "activity": {"count": 4632, "duration_s": 45.0, "mean": 2.35217, "std": 2.33007, "min": 0.09837, "max": 10.27362},
+      "captured_at": "2026-09-22T18:00:00+00:00"
+    }
+  },
+  "adopted_thresholds": {
+    "afternoon": {
+      "SPECTRUM_EMPTY_MAX": 0.3,
+      "SPECTRUM_MOVING_MIN": 0.5,
+      "SPECTRUM_MOTION_SCALE": 1.0,
+      "SPECTRUM_MOTION_GAMMA": 2.0,
+      "SPECTRUM_LED_MIN": 0.7,
+      "SPECTRUM_CSI_WINDOW_SIZE": 50,
+      "SPECTRUM_STD_WINDOW_SIZE": 100
+    },
+    "evening": {
+      "SPECTRUM_EMPTY_MAX": 2.0,
+      "SPECTRUM_MOVING_MIN": 2.2,
+      "SPECTRUM_MOTION_SCALE": 4.5,
+      "SPECTRUM_MOTION_GAMMA": 2.0,
+      "SPECTRUM_LED_MIN": 3.0,
+      "SPECTRUM_CSI_WINDOW_SIZE": 50,
+      "SPECTRUM_STD_WINDOW_SIZE": 100
+    }
+  }
+}

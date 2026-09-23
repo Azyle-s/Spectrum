@@ -1,0 +1,58 @@
+{
+  "1": {
+    "empty": {
+      "count": 5433,
+      "duration_s": 53.0,
+      "mean": 9.61182,
+      "std": 4.61693,
+      "min": 0.19231,
+      "max": 18.03846,
+      "captured_at": "2026-09-22T12:28:04+00:00"
+    },
+    "immobile_pos1": {
+      "count": 3075,
+      "duration_s": 30.0,
+      "mean": 7.71663,
+      "std": 3.66709,
+      "min": 0.21154,
+      "max": 13.51923,
+      "captured_at": "2026-09-22T12:31:20+00:00"
+    },
+    "immobile_pos2": {
+      "count": 3085,
+      "duration_s": 30.0,
+      "mean": 14.60108,
+      "std": 6.92461,
+      "min": 0.34615,
+      "max": 25.14423,
+      "captured_at": "2026-09-22T12:33:30+00:00"
+    },
+    "immobile_pos3": {
+      "count": 3081,
+      "duration_s": 30.0,
+      "mean": 13.42095,
+      "std": 6.30548,
+      "min": 0.25,
+      "max": 23.84615,
+      "captured_at": "2026-09-22T12:35:30+00:00"
+    },
+    "moving_light": {
+      "count": 3080,
+      "duration_s": 30.0,
+      "mean": 10.53782,
+      "std": 5.56227,
+      "min": 0.25962,
+      "max": 23.65385,
+      "captured_at": "2026-09-22T12:38:00+00:00"
+    },
+    "moving_intense": {
+      "count": 3094,
+      "duration_s": 30.1,
+      "mean": 9.88801,
+      "std": 5.21921,
+      "min": 0.31731,
+      "max": 23.85577,
+      "captured_at": "2026-09-22T12:40:00+00:00"
+    }
+  }
+}

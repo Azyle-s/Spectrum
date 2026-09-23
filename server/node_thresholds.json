@@ -1,0 +1,18 @@
+{
+  "_comment": "Per-node motion/presence thresholds. 'default' applies to any node without its own entry. Edit and redeploy (docker compose up -d --build) to apply -- no code change needed. See calibration_v2.json for the measurements behind these numbers, and note that they're time-of-day dependent (see that file's notes).",
+  "default": {
+    "empty_max": 0.3,
+    "moving_min": 0.5,
+    "motion_scale": 1.0,
+    "motion_gamma": 2.0,
+    "led_min": null
+  },
+  "1": {
+    "empty_max": 1.0,
+    "moving_min": 1.5,
+    "motion_scale": 5.0,
+    "motion_gamma": 3.3,
+    "led_min": 3.0,
+    "_calibrated_at": "2026-09-22T~19:00:00+00:00 (night, measured: idle activity max~1.0, real movement mean=3.64 max=10.8 -- environment had drifted again despite reverting the numbers earlier)"
+  }
+}
