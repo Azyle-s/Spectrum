@@ -80,6 +80,7 @@ def per_core_percent() -> list[float]:
 
 
 _CLK_TCK = os.sysconf("SC_CLK_TCK")  # jiffies/second -- same unit /proc/[pid]/stat's utime+stime use
+_CPU_COUNT = os.cpu_count() or 1
 _prev_proc_jiffies: dict[int, tuple[float, int]] = {}  # pid -> (wall_ts, utime+stime)
 
 
@@ -125,7 +126,12 @@ def top_processes(n: int = 5) -> list[dict]:
             prev_ts, prev_jiffies = prev
             dt = now - prev_ts
             if dt > 0:
-                cpu_pct = max(0.0, 100.0 * (info["jiffies"] - prev_jiffies) / _CLK_TCK / dt)
+                # Divided by core count so this sits on the same 0-100% scale
+                # as cpu_percent() above (the CPU ring) -- without it, a
+                # process pinned to one core reads relative to *that* core
+                # alone (matches `top`'s default, but confusing next to a
+                # ring that's already an all-core average).
+                cpu_pct = max(0.0, 100.0 * (info["jiffies"] - prev_jiffies) / _CLK_TCK / dt / _CPU_COUNT)
         results.append({
             "name": info["name"],
             "pid": pid,

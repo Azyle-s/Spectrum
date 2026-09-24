@@ -1329,7 +1329,7 @@
       dot.className = "dot";
       const name = document.createElement("span");
       name.className = "name";
-      name.textContent = (d.name || "?") + (d.self ? " (moi)" : "");
+      name.textContent = d.name || "?";
       row.appendChild(dot);
       row.appendChild(name);
       tailscaleDevicesEl.appendChild(row);
