@@ -14,6 +14,7 @@ import meshtastic_stats
 import pihole_stats
 import system_stats
 import tailscale_stats
+import unbound_stats
 import weather_stats
 from state import NodeRegistry
 
@@ -26,6 +27,7 @@ WEATHER_STATS_INTERVAL_S = 900.0  # outdoor temp barely moves within 15 minutes
 TAILSCALE_STATS_INTERVAL_S = 30.0  # peer online/offline state, not exactly fast-moving either
 DOCKER_STATS_INTERVAL_S = 30.0  # container list, same cadence as tailscale peers
 PROCESS_STATS_INTERVAL_S = 3.0  # scans every pid in /proc -- more often than that is wasted work on a Pi
+UNBOUND_STATS_INTERVAL_S = 5.0  # same cadence as pihole, they're the same "how much DNS activity" story
 
 # Nodes planned for this deployment (1 = active DevKitC-1, 2-3 reserved for
 # the second DevKitC-1 / future nodes). Pre-registering them means they show
@@ -48,6 +50,7 @@ _weather_cache: dict = {}
 _tailscale_cache: dict = {}
 _docker_cache: dict = {}
 _process_cache: list = []
+_unbound_cache: dict = {}
 _http_client: httpx.AsyncClient | None = None
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
@@ -149,6 +152,7 @@ async def broadcast_loop():
             "tailscale": _tailscale_cache,
             "docker": _docker_cache,
             "processes": _process_cache,
+            "unbound": _unbound_cache,
             "log": event_log.snapshot(),
         })
         await asyncio.sleep(BROADCAST_INTERVAL_S)
@@ -172,6 +176,17 @@ async def pihole_stats_loop():
         except httpx.HTTPError as exc:
             log.warning("pihole_stats fetch failed: %s", exc)
         await asyncio.sleep(PIHOLE_STATS_INTERVAL_S)
+
+
+async def unbound_stats_loop():
+    while True:
+        try:
+            stats = await unbound_stats.fetch_stats()
+            if stats is not None:
+                _unbound_cache.update(stats)
+        except Exception as exc:
+            log.warning("unbound_stats fetch failed: %s", exc)
+        await asyncio.sleep(UNBOUND_STATS_INTERVAL_S)
 
 
 async def weather_stats_loop():
@@ -233,7 +248,7 @@ async def process_stats_loop():
     global _process_cache
     while True:
         try:
-            _process_cache = system_stats.top_processes(10)
+            _process_cache = system_stats.top_processes(13)
         except OSError as exc:
             log.warning("process_stats read failed: %s", exc)
         await asyncio.sleep(PROCESS_STATS_INTERVAL_S)
@@ -249,6 +264,7 @@ async def startup():
     asyncio.create_task(broadcast_loop())
     asyncio.create_task(system_stats_loop())
     asyncio.create_task(pihole_stats_loop())
+    asyncio.create_task(unbound_stats_loop())
     asyncio.create_task(weather_stats_loop())
     asyncio.create_task(tailscale_stats_loop())
     asyncio.create_task(docker_stats_loop())

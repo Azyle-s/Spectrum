@@ -240,14 +240,31 @@
        on their own). */
     flex: 1;
   }
+  #sys-log {
+    /* PROCESSUS is tall enough that LOG+DOCKER's natural height falls
+       short of the stretched .sys-side wrapper, leaving a gap below one
+       of them instead of reaching the bottom. Both get a share of that
+       leftover space now (roughly even) rather than it all going to LOG
+       -- this only redistributes space already inside row3's fixed
+       height (driven by PROCESSUS), it doesn't change row3's or the
+       page's total height. NOTE: the single-number `flex: N` shorthand
+       sets flex-basis to 0%, not auto -- with DOCKER's real container
+       list needing ~131px, any DOCKER share below that gets clamped up
+       to its content minimum regardless of the ratio, so a 0.7/0.3-ish
+       split looked identical to 1/0 (all the leftover still ends up in
+       LOG). Needs to clear that ~131px floor by a real margin to have
+       any visible effect at all. */
+    flex: 0.5;
+  }
   #sys-docker {
-    /* same fix as #sys-tailscale above -- PROCESSUS is tall enough now
-       (10 rows) that LOG+DOCKER's natural height falls short of the
-       stretched .sys-side wrapper, leaving a gap below DOCKER instead of
-       DOCKER itself reaching the bottom. Stretching it on purpose here
-       (even with room to spare) so future containers have somewhere to
-       land without the panel needing to grow again. */
-    flex: 1;
+    /* see #sys-log above. */
+    flex: 0.5;
+  }
+  #sys-unbound {
+    /* stays at its own natural (single-line) height -- #sys-net takes the
+       stretch instead (see its own rule), so the leftover space in this
+       column goes to NET's panel rather than padding out UNBOUND. */
+    flex-shrink: 0;
   }
   #tailscale-devices, #docker-containers {
     display: flex;
@@ -380,7 +397,7 @@
   /* Same glow as the title/CPU ring, on request -- scoped to these four
      specifically (not the shared .sys-value class) so it doesn't leak
      onto mesh-status, which sets its own color in JS. */
-  #mem-value, #disk-value, #pihole-value, #net-value, #uptime-value, #tailscale-value, #docker-value {
+  #mem-value, #disk-value, #pihole-value, #net-value, #uptime-value, #tailscale-value, #docker-value, #unbound-value {
     color: #33ff66;
     text-shadow:
       0 0 2px #33ff66,
@@ -459,6 +476,13 @@
   #sys-net {
     display: flex;
     flex-direction: column;
+    /* absorbs the leftover space in the NET+UNBOUND column (mesh+pihole
+       on the other side are taller) -- UNBOUND stays at its own minimal
+       single-line height instead (see its own rule), and the canvas
+       itself still doesn't grow (see the fixed-56px rule right below),
+       so this just centers it in a taller panel via the canvas's own
+       auto margins. */
+    flex: 1;
   }
   #sys-net .sys-canvas {
     /* stays the original 56px -- centered in the leftover space below the
@@ -608,6 +632,16 @@
      comment above) doesn't have room for all three side by side either.
      These stack things vertically instead rather than trying to shrink
      content that isn't meant to shrink. -------------------------------- */
+  @media (min-width: 561px) and (max-width: 640px) {
+    /* the kiosk's 600px width is designed to fit exactly without scrolling
+       (see the comment above) -- measured scrollHeight/clientHeight match
+       exactly at that width, so a visible scrollbar there is just
+       sub-pixel layout rounding, not real overflow. Hidden outright since
+       this page was never meant to scroll on the kiosk panel. */
+    html, body {
+      overflow-y: hidden;
+    }
+  }
   @media (max-width: 560px) {
     #system-wrap {
       grid-template-columns: 1fr;
@@ -763,12 +797,21 @@
     </div>
 
     <div id="sys-row2">
-      <div class="sys-panel" id="sys-net">
-        <div class="sys-header">
-          <span class="sys-label" style="color:#7ec8e3">NET</span>
-          <span class="sys-value" id="net-value">—</span>
+      <div class="sys-side" id="sys-net-stack">
+        <div class="sys-panel" id="sys-net">
+          <div class="sys-header">
+            <span class="sys-label" style="color:#7ec8e3">NET</span>
+            <span class="sys-value" id="net-value">—</span>
+          </div>
+          <canvas class="sys-canvas" id="net-graph"></canvas>
         </div>
-        <canvas class="sys-canvas" id="net-graph"></canvas>
+
+        <div class="sys-panel" id="sys-unbound">
+          <div class="sys-header">
+            <span class="sys-label" style="color:#94a3b8">UNBOUND</span>
+            <span class="sys-value" id="unbound-value">—</span>
+          </div>
+        </div>
       </div>
 
       <div class="sys-side" id="sys-net-side">
@@ -1067,6 +1110,7 @@
   const piholeValueEl = document.getElementById("pihole-value");
   const piholeSubEl = document.getElementById("pihole-sub");
   const piholeBarEl = document.getElementById("pihole-bar");
+  const unboundValueEl = document.getElementById("unbound-value");
   const meshWaveCanvas = document.getElementById("mesh-wave");
   const meshStatusEl = document.getElementById("mesh-status");
   const meshSubEl = document.getElementById("mesh-sub");
@@ -1596,6 +1640,13 @@
     piholeBarEl.innerHTML = splitBar(pihole.percent_blocked, dotsToFit(piholeBarEl, 14));
   }
 
+  function updateUnbound(unbound) {
+    if (!unbound || unbound.cache_hit_pct === undefined) return;
+    unboundValueEl.innerHTML = digitize(
+      `${unbound.cache_hit_pct.toFixed(1)}% · ${formatCount(unbound.queries)} req · ${unbound.avg_recursion_ms.toFixed(0)}ms`
+    );
+  }
+
   // Distinct from formatUptime() below (used for the Meshtastic device,
   // which never realistically runs for days) -- the Pi itself can stay up
   // for weeks, so this one needs a days place.
@@ -1682,7 +1733,7 @@
   function updateLog(entries) {
     if (!entries) return;
     logEntriesEl.innerHTML = "";
-    for (const e of entries.slice(0, 8)) {
+    for (const e of entries.slice(0, 6)) {
       const row = document.createElement("div");
       row.className = "log-row";
       const time = document.createElement("span");
@@ -1764,6 +1815,7 @@
       applySnapshot(payload.nodes || []);
       updateSystem(payload.system);
       updatePihole(payload.pihole);
+      updateUnbound(payload.unbound);
       updateMeshtastic(payload.meshtastic);
       updateWeather(payload.weather);
       updateTailscale(payload.tailscale);

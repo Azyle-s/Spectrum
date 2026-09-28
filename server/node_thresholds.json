@@ -9,10 +9,10 @@
   },
   "1": {
     "empty_max": 1.0,
-    "moving_min": 1.5,
-    "motion_scale": 5.0,
+    "moving_min": 1.6,
+    "motion_scale": 3.1,
     "motion_gamma": 3.3,
-    "led_min": 3.0,
-    "_calibrated_at": "2026-09-22T~19:00:00+00:00 (night, measured: idle activity max~1.0, real movement mean=3.64 max=10.8 -- environment had drifted again despite reverting the numbers earlier)"
+    "led_min": 1.9,
+    "_calibrated_at": "2026-09-24T~18:00:00+00:00 (measured: empty mean=0.24 max=1.76, moving mean=2.58 max=7.51 -- signal level had drifted down since 09-22's calibration, motion_scale lowered from 5.0 to 3.1 to match, led_min rescaled proportionally)"
   }
 }
